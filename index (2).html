@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Image Editor</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h2 {
+            color: #333;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            background-color: #fff;
+            margin-top: 10px;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .slider {
+            width: 80%;
+            margin: 10px 0;
+        }
+        label {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .effects {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .effects label {
+            margin: 0 10px;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #4cae4c;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Medical Image Editor</h2>
+
+    <!-- Image Upload -->
+    <input type="file" id="imageLoader" accept="image/*" />
+    <br>
+
+    <!-- Canvas to Display Image -->
+    <canvas id="imageCanvas" width="500" height="500"></canvas>
+    <br>
+
+    <div class="controls">
+        <!-- Contrast Slider -->
+        <label for="contrast">Adjust Contrast:</label>
+        <input type="range" id="contrastSlider" class="slider" min="0" max="200" value="100">
+        
+        <!-- Brightness Slider -->
+        <label for="brightness">Adjust Brightness:</label>
+        <input type="range" id="brightnessSlider" class="slider" min="0" max="200" value="100">
+        
+        <!-- Sharpness Slider -->
+        <label for="sharpness">Adjust Sharpness:</label>
+        <input type="range" id="sharpnessSlider" class="slider" min="0" max="10" value="5" step="0.1">
+        
+        <!-- Effects Checkbox -->
+        <div class="effects">
+            <label for="grayscale">Grayscale:</label>
+            <input type="checkbox" id="grayscale">
+            
+            <label for="sepia">Sepia:</label>
+            <input type="checkbox" id="sepia">
+        </div>
+
+        <!-- Reset Button -->
+        <button id="resetButton">Reset Image</button>
+    </div>
+
+    <script>
+        const imageLoader = document.getElementById('imageLoader');
+        const contrastSlider = document.getElementById('contrastSlider');
+        const brightnessSlider = document.getElementById('brightnessSlider');
+        const sharpnessSlider = document.getElementById('sharpnessSlider');
+        const grayscaleCheckbox = document.getElementById('grayscale');
+        const sepiaCheckbox = document.getElementById('sepia');
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+        let originalImage = null;
+
+        // Load image onto canvas
+        imageLoader.addEventListener('change', (e) => {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    originalImage = img;
+                    drawImage();
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        });
+
+        // Draw image with applied filters
+        function drawImage() {
+            if (!originalImage) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.filter = `
+                contrast(${contrastSlider.value}%)
+                brightness(${brightnessSlider.value}%)
+                saturate(${sharpnessSlider.value})
+            `;
+            ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+
+            // Apply effects
+            if (grayscaleCheckbox.checked) {
+                applyEffect('grayscale');
+            }
+            if (sepiaCheckbox.checked) {
+                applyEffect('sepia');
+            }
+        }
+
+        // Apply effects to image
+        function applyEffect(effect) {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            for (let i = 0; i < data.length; i += 4) {
+                if (effect === 'grayscale') {
+                    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                    data[i] = data[i + 1] = data[i + 2] = avg; // R, G, B
+                }
+                if (effect === 'sepia') {
+                    const tr = 0.393 * data[i] + 0.769 * data[i + 1] + 0.189 * data[i + 2];
+                    const tg = 0.349 * data[i] + 0.686 * data[i + 1] + 0.168 * data[i + 2];
+                    const tb = 0.272 * data[i] + 0.534 * data[i + 1] + 0.131 * data[i + 2];
+                    data[i] = tr > 255 ? 255 : tr;   // R
+                    data[i + 1] = tg > 255 ? 255 : tg; // G
+                    data[i + 2] = tb > 255 ? 255 : tb; // B
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // Update image on slider input
+        contrastSlider.addEventListener('input', drawImage);
+        brightnessSlider.addEventListener('input', drawImage);
+        sharpnessSlider.addEventListener('input', drawImage);
+        grayscaleCheckbox.addEventListener('change', drawImage);
+        sepiaCheckbox.addEventListener('change', drawImage);
+
+        // Reset image to original
+        document.getElementById('resetButton').addEventListener('click', () => {
+            contrastSlider.value = 100;
+            brightnessSlider.value = 100;
+            sharpnessSlider.value = 5;
+            grayscaleCheckbox.checked = false;
+            sepiaCheckbox.checked = false;
+            drawImage();
+        });
+    </script>
+
+</body>
+</html>
